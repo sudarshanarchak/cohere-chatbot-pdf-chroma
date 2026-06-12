@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import { Message } from '@/types/chat';
@@ -16,6 +16,8 @@ import {
 export default function Home() {
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [messageState, setMessageState] = useState<{
     messages: Message[];
@@ -36,6 +38,7 @@ export default function Home() {
 
   const messageListRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     textAreaRef.current?.focus();
@@ -120,13 +123,91 @@ export default function Home() {
     }
   };
 
+  async function handlePdfUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (
+      file.type !== 'application/pdf' &&
+      !file.name.toLowerCase().endsWith('.pdf')
+    ) {
+      setError('Please choose a PDF file.');
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
+    setUploadMessage(null);
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to upload PDF.');
+      }
+
+      setUploadMessage(
+        `${file.name} uploaded and ingested. You can ask questions from it now.`,
+      );
+    } catch (error: any) {
+      setError(error.message || 'An error occurred while uploading the PDF.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+
   return (
     <>
       <Layout>
-        <div className="mx-auto flex flex-col gap-4">
-          <h1 className="text-2xl font-bold leading-[1.1] tracking-tighter text-center">
-            Find Answers in Your Documents
-          </h1>
+        <div className={styles.pageShell}>
+          <div className={styles.hero}>
+            <p className={styles.eyebrow}>Document intelligence workspace</p>
+            <h1 className={styles.title}>Find Answers in Your Documents</h1>
+          </div>
+          <div className={styles.uploadPanel}>
+            <div>
+              <label htmlFor="pdfUpload" className={styles.uploadLabel}>
+                Upload a PDF
+              </label>
+              <p className={styles.uploadHint}>
+                The document will be saved and ingested automatically.
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
+              id="pdfUpload"
+              type="file"
+              accept=".pdf,application/pdf"
+              disabled={uploading || loading}
+              onChange={handlePdfUpload}
+              className={styles.fileInput}
+            />
+          </div>
+          {uploading && (
+            <div className={styles.uploadProgressWrap}>
+              <div className={styles.uploadProgress} />
+              <p className={styles.uploadStatus}>
+                Uploading and ingesting PDF...
+              </p>
+            </div>
+          )}
+          {uploadMessage && (
+            <div className={styles.uploadSuccess}>
+              <p>{uploadMessage}</p>
+            </div>
+          )}
           <main className={styles.main}>
             <div className={styles.cloud}>
               <div ref={messageListRef} className={styles.messagelist}>
@@ -211,7 +292,7 @@ export default function Home() {
               <div className={styles.cloudform}>
                 <form onSubmit={handleSubmit}>
                   <textarea
-                    disabled={loading}
+                    disabled={loading || uploading}
                     onKeyDown={handleEnter}
                     ref={textAreaRef}
                     autoFocus={false}
@@ -222,6 +303,8 @@ export default function Home() {
                     placeholder={
                       loading
                         ? 'Waiting for response...'
+                        : uploading
+                          ? 'Ingesting your PDF...'
                         : 'What are the courses offered at TheSkillPedia.com?'
                     }
                     value={query}
@@ -230,12 +313,12 @@ export default function Home() {
                   />
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || uploading}
                     className={styles.generatebutton}
                   >
                     {loading ? (
                       <div className={styles.loadingwheel}>
-                        <LoadingDots color="#000" />
+                        <LoadingDots color="#fff" />
                       </div>
                     ) : (
                       // Send icon SVG in input field
@@ -258,7 +341,7 @@ export default function Home() {
             )}
           </main>
         </div>
-        <footer className="m-auto p-4">
+        <footer className={styles.footer}>
           <a href="https://twitter.com/TheSkillPedia">
             Powered by LangChainAI. Learn Generative AI TheSkillPedia (Twitter: @TheSkillPedia).
           </a>
