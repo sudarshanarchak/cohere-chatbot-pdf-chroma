@@ -4,6 +4,26 @@ import { makeChain } from '@/utils/makechain';
 import { COLLECTION_NAME } from '@/config/chroma';
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 
+type ChatTurn = [string, string];
+
+const formatChatHistory = (history: unknown) => {
+  if (!Array.isArray(history)) {
+    return '';
+  }
+
+  return history
+    .filter(
+      (turn): turn is ChatTurn =>
+        Array.isArray(turn) &&
+        turn.length === 2 &&
+        typeof turn[0] === 'string' &&
+        typeof turn[1] === 'string',
+    )
+    .map(([userMessage, assistantMessage]) =>
+      [`Human: ${userMessage}`, `Assistant: ${assistantMessage}`].join('\n'),
+    )
+    .join('\n\n');
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -23,6 +43,7 @@ export default async function handler(
     return res.status(400).json({ message: 'No question in the request' });
   }
   const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
+  const chatHistory = formatChatHistory(history);
 
   try {
     /* create vectorstore*/
@@ -40,7 +61,7 @@ export default async function handler(
     //Ask a question using chat history
     const response = await chain.call({
       question: sanitizedQuestion,
-      chat_history: history || [],
+      chat_history: chatHistory,
     });
 
     console.log('response', response);
@@ -50,4 +71,3 @@ export default async function handler(
     res.status(500).json({ error: error.message || 'Something went wrong' });
   }
 }
-
