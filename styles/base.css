@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(120deg, rgba(16, 163, 127, 0.12), transparent 32%),
+    linear-gradient(300deg, rgba(244, 114, 91, 0.1), transparent 34%),
+    linear-gradient(135deg, #f8fafc 0%, #eef2f7 46%, #f9fafb 100%);
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
