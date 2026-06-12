@@ -3,6 +3,7 @@ import { ConversationalRetrievalQAChain } from "@langchain/classic/chains";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 
 const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
+Preserve references to earlier answers, numbered points, entities, and comparisons from the chat history.
 
 Chat History:
 {chat_history}
@@ -30,7 +31,7 @@ export const makeChain = (vectorstore: Chroma) => {
     {
       qaTemplate: QA_PROMPT,
       questionGeneratorTemplate: CONDENSE_PROMPT,
-      returnSourceDocuments: true, //The number of source documents returned is 4 by default
+      returnSourceDocuments: true, // The number of source documents returned is 4 by default
     },
   );
   return chain;
